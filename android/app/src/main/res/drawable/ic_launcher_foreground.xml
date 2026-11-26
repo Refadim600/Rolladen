@@ -1,0 +1,10 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Stilisierter Rollladen: Kasten oben, Lamellen darunter -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M30,30h48v7h-48z M33,41h42v5h-42z M33,50h42v5h-42z M33,59h42v5h-42z M33,68h42v5h-42z M51,73h6v5h-6z" />
+</vector>

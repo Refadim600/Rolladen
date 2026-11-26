@@ -4,3 +4,9 @@ build/
 DerivedData/
 .DS_Store
 xcuserdata/
+android/.gradle/
+android/build/
+android/app/build/
+android/local.properties
+.idea/
+*.iml

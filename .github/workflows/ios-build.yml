@@ -1,0 +1,22 @@
+name: iOS-Build
+
+# Nur noch manuell starten (Actions → iOS-Build → Run workflow), um macOS-Minuten zu sparen.
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-15
+    defaults:
+      run:
+        working-directory: ios
+    steps:
+      - uses: actions/checkout@v4
+      - run: brew install xcodegen
+      - run: xcodegen generate
+      - name: Für iOS-Simulator bauen (ohne Signierung)
+        run: |
+          set -o pipefail
+          xcodebuild -project Rollladen.xcodeproj -scheme Rollladen -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO build
