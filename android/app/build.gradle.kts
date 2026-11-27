@@ -14,14 +14,27 @@ android {
         // Android 5.0 und neuer (java.time über Desugaring)
         minSdk = 21
         targetSdk = 35
-        versionCode = 3
-        versionName = "2.0"
+        versionCode = 4
+        versionName = "2.0.1"
+    }
+
+    // Fester Schlüssel im Repo: Jeder Build hat dieselbe Signatur, Updates lassen sich drüber installieren.
+    signingConfigs {
+        create("fixed") {
+            storeFile = file("rollladen.jks")
+            storePassword = "rollladen"
+            keyAlias = "rollladen"
+            keyPassword = "rollladen"
+        }
     }
 
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("fixed")
+        }
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("fixed")
         }
     }
     compileOptions {
