@@ -25,8 +25,10 @@ data class CoverStatus(val state: String, val position: Int?) {
         }
 }
 
+data class SwitchStatus(val on: Boolean, val power: Double?)
+
 /**
- * Lokale RPC-Schnittstelle der Shelly Gen2+/Gen4-Geräte: POST http://<host>/rpc
+ * Lokale RPC-Schnittstelle der Shelly Gen2+/Gen3/Gen4-Geräte: POST http://<host>/rpc
  * Unterstützt die optionale Geräte-Authentifizierung (HTTP Digest, SHA-256).
  */
 class ShellyClient(private val host: String, private val password: String) {
@@ -56,6 +58,76 @@ class ShellyClient(private val host: String, private val password: String) {
         val location = JSONObject().put("tz", timeZone)
         if (latitude != null && longitude != null) location.put("lat", latitude).put("lon", longitude)
         call("Sys.SetConfig", JSONObject().put("config", JSONObject().put("location", location)))
+    }
+
+    // ---- Schalter (1PM Mini) ----
+
+    suspend fun switchSet(on: Boolean, id: Int = 0) {
+        call("Switch.Set", JSONObject().put("id", id).put("on", on))
+    }
+
+    suspend fun switchStatus(id: Int = 0): SwitchStatus {
+        val r = call("Switch.GetStatus", JSONObject().put("id", id)) as? JSONObject ?: JSONObject()
+        val power = if (r.has("apower") && !r.isNull("apower")) r.getDouble("apower") else null
+        return SwitchStatus(r.optBoolean("output", false), power)
+    }
+
+    // ---- Temperatur (Plus Add-on) ----
+
+    suspend fun temperature(id: Int): Double? {
+        val r = call("Temperature.GetStatus", JSONObject().put("id", id)) as? JSONObject ?: return null
+        return if (r.has("tC") && !r.isNull("tC")) r.getDouble("tC") else null
+    }
+
+    suspend fun fullStatus(): JSONObject = call("Shelly.GetStatus") as? JSONObject ?: JSONObject()
+
+    // ---- Eingänge (Plus i4 DC) ----
+
+    suspend fun setInputButton(id: Int) {
+        call("Input.SetConfig", JSONObject().put("id", id).put("config", JSONObject().put("type", "button")))
+    }
+
+    // ---- KVS (Automatik-Sperre) ----
+
+    /** Liest einen Wahrheitswert; fehlt der Schlüssel, gilt false. Nicht erreichbar → Exception. */
+    suspend fun kvsGetBool(key: String): Boolean = try {
+        val r = call("KVS.Get", JSONObject().put("key", key)) as? JSONObject
+        r?.optBoolean("value", false) ?: false
+    } catch (e: ShellyException) {
+        if (e.message?.startsWith("Shelly meldet") == true) false else throw e
+    }
+
+    suspend fun kvsSet(key: String, value: Boolean) {
+        call("KVS.Set", JSONObject().put("key", key).put("value", value))
+    }
+
+    // ---- Skripte ----
+
+    /** Legt das Skript an bzw. ersetzt es, aktiviert Autostart und startet es. Gibt die Skript-ID zurück. */
+    suspend fun installScript(name: String, code: String): Int {
+        val list = call("Script.List") as? JSONObject
+        val scripts = list?.optJSONArray("scripts") ?: JSONArray()
+        var id = -1
+        for (i in 0 until scripts.length()) {
+            val s = scripts.optJSONObject(i) ?: continue
+            if (s.optString("name") == name) {
+                id = s.getInt("id")
+                break
+            }
+        }
+        if (id >= 0) {
+            try { call("Script.Stop", JSONObject().put("id", id)) } catch (e: ShellyException) { /* lief nicht */ }
+        } else {
+            val created = call("Script.Create", JSONObject().put("name", name)) as? JSONObject
+                ?: throw ShellyException("Skript konnte nicht angelegt werden")
+            id = created.getInt("id")
+        }
+        code.chunked(1024).forEachIndexed { i, chunk ->
+            call("Script.PutCode", JSONObject().put("id", id).put("code", chunk).put("append", i > 0))
+        }
+        call("Script.SetConfig", JSONObject().put("id", id).put("config", JSONObject().put("enable", true)))
+        call("Script.Start", JSONObject().put("id", id))
+        return id
     }
 
     suspend fun call(method: String, params: JSONObject = JSONObject()): Any? = withContext(Dispatchers.IO) {

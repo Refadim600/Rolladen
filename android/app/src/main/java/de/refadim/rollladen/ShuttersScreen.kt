@@ -107,6 +107,8 @@ fun ShuttersScreen(vm: AppViewModel, onEdit: (String) -> Unit) {
                 ) { Text(text, Modifier.padding(12.dp), style = MaterialTheme.typography.bodySmall) }
             }
 
+            if (vm.autoLocked) LockBanner(vm, Modifier.padding(horizontal = 16.dp, vertical = 4.dp))
+
             LazyVerticalGrid(
                 columns = GridCells.Adaptive(minSize = 340.dp),
                 contentPadding = PaddingValues(16.dp),
@@ -218,7 +220,7 @@ fun ShutterEditScreen(vm: AppViewModel, id: String, onBack: () -> Unit) {
             }
             Text(
                 "Tipp: Im Router für jeden Shelly eine feste IP vergeben. Der Shelly muss im Cover-Modus " +
-                    "betrieben und kalibriert sein. Cover-ID ist beim 2PM Gen4 normalerweise 0.",
+                    "betrieben und kalibriert sein. Cover-ID ist beim 2PM Gen3/Gen4 normalerweise 0.",
                 style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 

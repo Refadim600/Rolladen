@@ -98,7 +98,7 @@ fun SchedulesScreen(vm: AppViewModel, onEdit: (String) -> Unit) {
                     if (vm.syncing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp)
                     else Icon(Icons.Filled.CloudUpload, null)
                     Spacer(Modifier.width(10.dp))
-                    Text("Wochenplan auf Shellys übertragen", fontWeight = FontWeight.Bold)
+                    Text("Wochenplan & Taster auf Shellys übertragen", fontWeight = FontWeight.Bold)
                 }
                 if (vm.needsSync) {
                     Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -109,8 +109,10 @@ fun SchedulesScreen(vm: AppViewModel, onEdit: (String) -> Unit) {
                     }
                 }
                 Text(
-                    "Die Zeitpläne werden auf den Shellys gespeichert und laufen dort – auch wenn das Tablet aus " +
-                        "oder außer Haus ist. Vorhandene Zeitpläne auf den Geräten werden dabei ersetzt.",
+                    "Die Zeitpläne werden auf den Shellys gespeichert und laufen dort – auch wenn das Display aus ist. " +
+                        "Vorhandene Zeitpläne auf den Geräten werden ersetzt. Zusätzlich werden die Taster-Skripte " +
+                        "auf die 2PM und die i4 DC gespielt: Ein Tastendruck sperrt die Automatik aller Rollläden, " +
+                        "bis sie am Display wieder freigegeben wird.",
                     style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp),
                 )
@@ -160,7 +162,7 @@ private fun RuleCard(r: ScheduleRule, settings: AppSettings, onClick: () -> Unit
 }
 
 @Composable
-private fun SyncResultsDialog(results: List<SyncResult>, onDismiss: () -> Unit) {
+fun SyncResultsDialog(results: List<SyncResult>, onDismiss: () -> Unit) {
     AlertDialog(
         onDismissRequest = onDismiss,
         confirmButton = { TextButton(onClick = onDismiss) { Text("Fertig") } },
@@ -178,7 +180,7 @@ private fun SyncResultsDialog(results: List<SyncResult>, onDismiss: () -> Unit) 
                         Spacer(Modifier.width(8.dp))
                         Column {
                             Text(r.name)
-                            Text(r.error ?: "${r.jobs} Zeitplan-Einträge gespeichert",
+                            Text(r.error ?: r.note ?: "${r.jobs} Zeitplan-Einträge gespeichert",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
@@ -337,6 +339,6 @@ fun RuleEditScreen(vm: AppViewModel, id: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun SectionTitle(text: String) {
+fun SectionTitle(text: String) {
     Text(text, style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
 }

@@ -24,6 +24,8 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.LocationOn
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -51,7 +53,7 @@ import java.time.format.DateTimeFormatter
 import kotlin.math.round
 
 @Composable
-fun SettingsScreen(vm: AppViewModel) {
+fun SettingsScreen(vm: AppViewModel, onOpenDisplay: () -> Unit, onOpenInputs: () -> Unit) {
     val context = LocalContext.current
     val s = vm.settings
     var latText by remember { mutableStateOf(if (s.latitude != 0.0) s.latitude.toString() else "") }
@@ -81,6 +83,20 @@ fun SettingsScreen(vm: AppViewModel) {
             Modifier.padding(pad).fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            Text("Display & Geräte", style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.primary)
+            OutlinedButton(onClick = onOpenDisplay, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.Wallpaper, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Ruhebildschirm, Wetterkarte & Temperaturen", Modifier.weight(1f))
+            }
+            OutlinedButton(onClick = onOpenInputs, modifier = Modifier.fillMaxWidth()) {
+                Icon(Icons.Filled.TouchApp, null)
+                Spacer(Modifier.width(8.dp))
+                Text("Taster-Module (Shelly Plus i4 DC)", Modifier.weight(1f))
+            }
+
+            HorizontalDivider()
             Text("Standort für Sonnenauf-/-untergang", style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary)
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -141,6 +157,8 @@ fun SettingsScreen(vm: AppViewModel) {
             Text(
                 "• Die App steuert die Shellys direkt im WLAN über deren lokale Schnittstelle – ohne Cloud.\n" +
                     "• Der Wochenplan wird als Zeitplan auf jedem Shelly gespeichert und dort ausgeführt.\n" +
+                    "• Taster (Plus i4 DC) schicken ihre Befehle direkt an die 2PM und sperren die Automatik, " +
+                    "bis sie am Display freigegeben wird – auch wenn das Display aus ist.\n" +
                     "• Von unterwegs funktioniert die Steuerung nur per VPN ins Heimnetz (z. B. FRITZ!Box-VPN).",
                 style = MaterialTheme.typography.bodySmall,
             )
