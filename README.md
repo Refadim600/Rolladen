@@ -1,6 +1,6 @@
 # Rollläden – Android-App für Shelly 2PM Gen4
 
-Native Android-App (Kotlin, Jetpack Compose) für 12 Rollläden, die über Shelly 2PM Gen4 im WLAN angesteuert werden. Sie läuft auf Tablets und Smartphones ab Android 8.
+Native Android-App (Kotlin, Jetpack Compose) für 12 Rollläden, die über Shelly 2PM Gen4 im WLAN angesteuert werden. Sie läuft auf Tablets und Smartphones ab Android 5.
 
 ## Funktionen
 - **ALLE ÖFFNEN:** große grüne Schaltfläche, die oben immer sichtbar ist. Sie öffnet alle Rollläden gleichzeitig und meldet Fehler einzeln. Darunter liegen „Alle stoppen“ und „Alle schließen“.
@@ -17,9 +17,8 @@ Native Android-App (Kotlin, Jetpack Compose) für 12 Rollläden, die über Shell
 Der Wochenplan wird als Shelly-Zeitplan (`Schedule.Create`) **auf jedem Gerät gespeichert** und läuft dort. Das Tablet muss dafür nicht eingeschaltet sein. Beim Übertragen ersetzt die App vorhandene Zeitpläne auf den Shellys (`Schedule.DeleteAll`). Pro Gerät sind maximal 20 Zeitpläne möglich.
 
 ## APK herunterladen und installieren
-1. Auf GitHub **Actions → Android-Build** öffnen und den neuesten erfolgreichen Durchlauf anklicken.
-2. Unten unter *Artifacts* **Rollladen-APK** herunterladen. Du bekommst eine ZIP-Datei mit `app-debug.apk`.
-3. Die APK auf das Tablet kopieren und öffnen. Android fragt dabei nach der Erlaubnis „Unbekannte Apps installieren“, die erteilst du einmalig.
+1. Auf dem Tablet direkt laden: https://github.com/Refadim600/Rolladen/releases/latest/download/Rollladen.apk (alternativ unter **Actions → Android-Build → Artifacts** als ZIP).
+2. Die APK öffnen. Android fragt dabei nach der Erlaubnis „Unbekannte Apps installieren“, die erteilst du einmalig.
 
 ## Voraussetzungen an den Shellys
 - Jeder 2PM Gen4 ist im **Cover-Modus** und **kalibriert**.
