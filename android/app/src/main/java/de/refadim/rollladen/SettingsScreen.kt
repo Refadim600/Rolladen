@@ -85,6 +85,13 @@ fun SettingsScreen(vm: AppViewModel, onOpenDisplay: () -> Unit, onOpenInputs: ()
         ) {
             Text("Display & Geräte", style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Dunkelmodus", Modifier.weight(1f))
+                Switch(
+                    checked = vm.display.darkMode,
+                    onCheckedChange = { vm.updateDisplay(vm.display.copy(darkMode = it)) },
+                )
+            }
             OutlinedButton(onClick = onOpenDisplay, modifier = Modifier.fillMaxWidth()) {
                 Icon(Icons.Filled.Wallpaper, null)
                 Spacer(Modifier.width(8.dp))

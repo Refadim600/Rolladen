@@ -11,12 +11,16 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
@@ -43,6 +47,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
@@ -200,7 +205,7 @@ private fun WeatherPage(vm: AppViewModel) {
     ) {
         val landscape = maxWidth > maxHeight
         val info: @Composable (Modifier) -> Unit = { mod ->
-            Column(mod.padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Column(mod.background(MaterialTheme.colorScheme.surface).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Text(now.format(clockFormat), fontSize = 56.sp, fontWeight = FontWeight.Light)
                 Text(now.format(dateFormat), style = MaterialTheme.typography.titleMedium)
                 TempTile("Innen", vm.indoorTemp, Modifier.fillMaxWidth())
@@ -218,7 +223,8 @@ private fun WeatherPage(vm: AppViewModel) {
             }
         }
         val map: @Composable (Modifier) -> Unit = { mod ->
-            Box(mod) {
+            // clipToBounds: die Karte zeichnet bei kleinen Zoomstufen sonst über ihren Bereich hinaus
+            Box(mod.clipToBounds()) {
                 RadarMap(vm.settings, vm.display, Modifier.fillMaxSize())
                 // Fängt Berührungen ab: die Karte bleibt fest, Wischen wechselt die Seite, Tippen öffnet die Steuerung
                 Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { vm.wake() } })
@@ -230,15 +236,16 @@ private fun WeatherPage(vm: AppViewModel) {
                 )
             }
         }
+        // Fester Bereich für Uhr und Temperaturen, die Karte füllt den Rest – unabhängig vom Zoom
         if (landscape) {
             Row(Modifier.fillMaxSize()) {
-                map(Modifier.weight(2f).fillMaxSize())
-                info(Modifier.weight(1f))
+                map(Modifier.weight(1f).fillMaxHeight())
+                info(Modifier.width(340.dp).fillMaxHeight().verticalScroll(rememberScrollState()))
             }
         } else {
             Column(Modifier.fillMaxSize()) {
-                map(Modifier.weight(1.4f).fillMaxWidth())
-                info(Modifier.weight(1f).fillMaxWidth())
+                map(Modifier.weight(1f).fillMaxWidth())
+                info(Modifier.fillMaxWidth().height(430.dp).verticalScroll(rememberScrollState()))
             }
         }
     }
@@ -291,6 +298,8 @@ private fun RadarMap(settings: AppSettings, display: DisplaySettings, modifier: 
         MapView(context).apply {
             setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(false)
+            isHorizontalMapRepetitionEnabled = false
+            isVerticalMapRepetitionEnabled = false
             zoomController.setVisibility(CustomZoomButtonsController.Visibility.NEVER)
             setTilesScaledToDpi(true)
         }

@@ -8,7 +8,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -53,17 +53,21 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            val scheme = if (isSystemInDarkTheme()) darkColorScheme(primary = Color(0xFF81C784))
-            else lightColorScheme(primary = Color(0xFF2E7D32))
-            MaterialTheme(colorScheme = scheme) { Root() }
-        }
+        setContent { Root() }
     }
 }
 
 /** Wurzel: Ruhebildschirm oder Steuerung; jede Berührung setzt den Inaktivitäts-Timer zurück. */
 @Composable
 fun Root(vm: AppViewModel = viewModel()) {
+    val dark = vm.display.darkMode
+    val scheme = if (dark) darkColorScheme(primary = Color(0xFF81C784))
+    else lightColorScheme(primary = Color(0xFF2E7D32))
+    MaterialTheme(colorScheme = scheme) { RootContent(vm, dark) }
+}
+
+@Composable
+private fun RootContent(vm: AppViewModel, dark: Boolean) {
     val view = LocalView.current
     val keepOn = vm.display.keepScreenOn
     DisposableEffect(keepOn) {
@@ -72,9 +76,11 @@ fun Root(vm: AppViewModel = viewModel()) {
     }
 
     val window = (LocalContext.current as? Activity)?.window
-    LaunchedEffect(vm.idle) {
+    LaunchedEffect(vm.idle, dark) {
         window?.let { w ->
             val c = WindowCompat.getInsetsController(w, w.decorView)
+            c.isAppearanceLightStatusBars = !dark
+            c.isAppearanceLightNavigationBars = !dark
             if (vm.idle) {
                 c.systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
                 c.hide(WindowInsetsCompat.Type.systemBars())
@@ -85,7 +91,7 @@ fun Root(vm: AppViewModel = viewModel()) {
     }
 
     Box(
-        Modifier.fillMaxSize().pointerInput(Unit) {
+        Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background).pointerInput(Unit) {
             awaitPointerEventScope {
                 while (true) {
                     awaitPointerEvent(PointerEventPass.Initial)

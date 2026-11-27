@@ -194,6 +194,8 @@ data class DisplaySettings(
     /** Nach so vielen Sekunden ohne Bedienung zurück zum Ruhebildschirm; 0 = nie */
     val idleTimeoutSeconds: Int = 120,
     val keepScreenOn: Boolean = true,
+    /** Dunkle Darstellung aller Seiten (die Wetterkarte selbst bleibt hell) */
+    val darkMode: Boolean = false,
     val mapZoom: Int = 8,
     /** Ebene des DWD-WMS (maps.dwd.de) */
     val radarLayer: String = "dwd:Niederschlagsradar",
