@@ -158,7 +158,7 @@ object SwitchSync {
         JSONObject().put("method", "Switch.Set").put("params", JSONObject().put("id", id).put("on", on))
 
     private suspend fun syncOne(a: SwitchActor, rules: List<SwitchRule>, settings: AppSettings): SyncResult {
-        val jobs = rules.sumOf { if (it.hasEnd) 2 else 1 }
+        val jobs: Int = rules.count() + rules.count { it.hasEnd }
         if (!a.hasHost) return SyncResult(a.name, 0, if (jobs == 0) null else "Keine IP-Adresse eingetragen", jobs == 0)
         if (jobs > ScheduleBuilder.MAX_JOBS) {
             return SyncResult(a.name, jobs, "Zu viele Zeitpunkte (max. ${ScheduleBuilder.MAX_JOBS} pro Gerät)")
