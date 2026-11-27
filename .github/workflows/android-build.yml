@@ -5,6 +5,9 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: write   # zum Veröffentlichen der APK als Release
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,8 +29,27 @@ jobs:
       - name: APK bauen
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
-      - name: APK bereitstellen
+      - name: APK prüfen und umbenennen
+        run: |
+          cp app/build/outputs/apk/debug/app-debug.apk ../Rollladen.apk
+          unzip -l ../Rollladen.apk | grep -q AndroidManifest.xml
+          ls -la ../Rollladen.apk
+
+      - name: APK als ZIP-Artefakt bereitstellen
         uses: actions/upload-artifact@v4
         with:
           name: Rollladen-APK
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: Rollladen.apk
+
+      # Direkter Download ohne ZIP:
+      # https://github.com/<owner>/<repo>/releases/latest/download/Rollladen.apk
+      - name: APK als Release veröffentlichen
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest ../Rollladen.apk \
+            --target "$GITHUB_SHA" \
+            --title "Rollläden – aktueller Build" \
+            --notes "Automatisch gebaut aus ${GITHUB_SHA::7}. Rollladen.apk auf dem Android-Gerät öffnen und installieren." \
+            --latest
