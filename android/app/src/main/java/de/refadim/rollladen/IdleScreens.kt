@@ -1,5 +1,8 @@
 package de.refadim.rollladen
 
+import android.content.Context
+import android.graphics.ColorMatrix
+import android.graphics.ColorMatrixColorFilter
 import android.net.Uri
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.tween
@@ -41,6 +44,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -65,23 +69,18 @@ import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
-import org.osmdroid.util.MapTileIndex
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
 import org.osmdroid.views.overlay.Marker
 import org.osmdroid.views.overlay.TilesOverlay
 import java.io.File
-import java.net.URLEncoder
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
-import kotlin.math.PI
 
 private val clockFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
 private val dateFormat = DateTimeFormatter.ofPattern("EEEE, d. MMMM", Locale.GERMAN)
-private const val DWD_WMS = "https://maps.dwd.de/geoserver/dwd/wms"
 
 /** Hinweis „Automatik gesperrt“ mit dem Freigabe-Button (Rollläden-Seite und Ruhebildschirm) */
 @Composable
@@ -227,15 +226,9 @@ private fun WeatherPage(vm: AppViewModel) {
         val map: @Composable (Modifier) -> Unit = { mod ->
             // clipToBounds: die Karte zeichnet bei kleinen Zoomstufen sonst über ihren Bereich hinaus
             Box(mod.clipToBounds()) {
-                RadarMap(vm.settings, vm.display, Modifier.fillMaxSize())
+                WeatherMap(vm.settings, vm.display, Modifier.fillMaxSize())
                 // Fängt Berührungen ab: die Karte bleibt fest, Wischen wechselt die Seite, Tippen öffnet die Steuerung
                 Box(Modifier.fillMaxSize().pointerInput(Unit) { detectTapGestures { vm.wake() } })
-                Text(
-                    "Niederschlagsradar: Deutscher Wetterdienst · Karte © OpenStreetMap-Mitwirkende",
-                    fontSize = 11.sp, color = Color.Black,
-                    modifier = Modifier.align(Alignment.BottomStart)
-                        .background(Color.White.copy(alpha = 0.75f)).padding(horizontal = 6.dp, vertical = 2.dp),
-                )
             }
         }
         // Fester Bereich für Uhr und Temperaturen, die Karte füllt den Rest – unabhängig vom Zoom
@@ -267,29 +260,11 @@ private fun TempTile(label: String, value: Double?, modifier: Modifier = Modifie
     }
 }
 
-/** WMS-Kacheln des DWD in Web-Mercator (EPSG:3857) */
-private class WmsTileSource(name: String, private val layer: String, private val stamp: Long) :
-    OnlineTileSourceBase(name, 0, 18, 256, ".png", arrayOf(DWD_WMS)) {
+private val statusTime = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
 
-    override fun getTileURLString(pMapTileIndex: Long): String {
-        val z = MapTileIndex.getZoom(pMapTileIndex)
-        val x = MapTileIndex.getX(pMapTileIndex)
-        val y = MapTileIndex.getY(pMapTileIndex)
-        val world = 2 * PI * 6378137.0
-        val half = world / 2
-        val tile = world / (1 shl z)
-        val minX = -half + x * tile
-        val maxX = minX + tile
-        val maxY = half - y * tile
-        val minY = maxY - tile
-        return DWD_WMS + "?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap" +
-            "&LAYERS=" + URLEncoder.encode(layer, "UTF-8") + "&STYLES=&SRS=EPSG:3857" +
-            "&BBOX=$minX,$minY,$maxX,$maxY&WIDTH=256&HEIGHT=256&FORMAT=image/png&TRANSPARENT=TRUE&_t=$stamp"
-    }
-}
-
+/** Karte mit Grundkarte, optional Wolken (EUMETSAT) und Regenradar (DWD oder RainViewer) plus Statuszeile */
 @Composable
-private fun RadarMap(settings: AppSettings, display: DisplaySettings, modifier: Modifier) {
+private fun WeatherMap(settings: AppSettings, display: DisplaySettings, modifier: Modifier) {
     val context = LocalContext.current
     val mapView = remember {
         Configuration.getInstance().apply {
@@ -298,7 +273,6 @@ private fun RadarMap(settings: AppSettings, display: DisplaySettings, modifier: 
             setOsmdroidTileCache(File(context.cacheDir, "osmdroid/tiles"))
         }
         MapView(context).apply {
-            setTileSource(TileSourceFactory.MAPNIK)
             setMultiTouchControls(false)
             isHorizontalMapRepetitionEnabled = false
             isVerticalMapRepetitionEnabled = false
@@ -307,13 +281,21 @@ private fun RadarMap(settings: AppSettings, display: DisplaySettings, modifier: 
         }
     }
     val marker = remember { Marker(mapView).apply { setAnchor(Marker.ANCHOR_CENTER, Marker.ANCHOR_BOTTOM) } }
+    var status by remember { mutableStateOf("Lade Wetterdaten …") }
 
     // Ohne Standort: Mitte Deutschlands
     val lat = if (settings.hasLocation) settings.latitude else 51.16
     val lon = if (settings.hasLocation) settings.longitude else 10.45
+    val zoom = if (display.radarSource == RadarSource.RAINVIEWER)
+        display.mapZoom.coerceAtMost(WeatherSources.RAINVIEWER_MAX_ZOOM) else display.mapZoom
 
-    LaunchedEffect(lat, lon, display.mapZoom) {
-        mapView.controller.setZoom(display.mapZoom.toDouble())
+    LaunchedEffect(display.baseMap) {
+        mapView.setTileSource(WeatherSources.baseTiles(display.baseMap))
+        mapView.invalidate()
+    }
+
+    LaunchedEffect(lat, lon, zoom) {
+        mapView.controller.setZoom(zoom.toDouble())
         mapView.controller.setCenter(GeoPoint(lat, lon))
         mapView.overlays.remove(marker)
         if (settings.hasLocation) {
@@ -323,24 +305,52 @@ private fun RadarMap(settings: AppSettings, display: DisplaySettings, modifier: 
         mapView.invalidate()
     }
 
-    // Radar alle 5 Minuten neu laden (neuer Kachel-Cache je Zeitfenster)
-    LaunchedEffect(display.radarLayer) {
-        var overlay: TilesOverlay? = null
+    // Wetterebenen alle 5 Minuten neu laden (neuer Kachel-Cache je Zeitfenster)
+    LaunchedEffect(display.radarSource, display.radarLayer, display.showClouds, display.cloudLayer, zoom, lat, lon) {
+        var current = listOf<TilesOverlay>()
         while (true) {
             val stamp = System.currentTimeMillis() / 300_000
-            val provider = MapTileProviderBasic(context.applicationContext, WmsTileSource("DWD-$stamp", display.radarLayer, stamp))
-            provider.setTileRequestCompleteHandler(mapView.tileRequestCompleteHandler)
-            val next = TilesOverlay(provider, context.applicationContext).apply {
-                setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
-                setLoadingLineColor(android.graphics.Color.TRANSPARENT)
+            val probeIndex = WeatherSources.tileIndexAt(lat, lon, zoom)
+            val next = mutableListOf<TilesOverlay>()
+            val parts = mutableListOf<String>()
+            val nowText = LocalDateTime.now().format(statusTime)
+
+            if (display.showClouds) {
+                val src = WmsTileSource("EUM-$stamp-${display.cloudLayer}", WeatherSources.EUMETSAT_WMS, display.cloudLayer, stamp)
+                val err = WeatherSources.probe(src.getTileURLString(probeIndex))
+                parts += if (err == null) "Wolken: $nowText ✓" else "Wolken: Fehler ($err)"
+                next += tilesOverlay(context, mapView, src, alpha = 0.6f)
             }
-            overlay?.let {
+            when (display.radarSource) {
+                RadarSource.OFF -> {}
+                RadarSource.DWD -> {
+                    val src = WmsTileSource("DWD-$stamp-${display.radarLayer}", WeatherSources.DWD_WMS, display.radarLayer, stamp)
+                    val err = WeatherSources.probe(src.getTileURLString(probeIndex))
+                    parts += if (err == null) "Regen (DWD): $nowText ✓" else "Regen (DWD): Fehler ($err)"
+                    next += tilesOverlay(context, mapView, src, alpha = 1f)
+                }
+                RadarSource.RAINVIEWER -> {
+                    try {
+                        val frame = WeatherSources.rainViewerFrame()
+                        val src = RainViewerTileSource("RV-${frame.time}", frame)
+                        val err = WeatherSources.probe(src.getTileURLString(probeIndex))
+                        val t = java.time.Instant.ofEpochSecond(frame.time).atZone(settings.zone).format(statusTime)
+                        parts += if (err == null) "Regen (RainViewer): Stand $t ✓" else "Regen (RainViewer): Fehler ($err)"
+                        next += tilesOverlay(context, mapView, src, alpha = 0.85f)
+                    } catch (e: Exception) {
+                        parts += "Regen (RainViewer): Fehler (${e.message ?: "nicht erreichbar"})"
+                    }
+                }
+            }
+            current.forEach {
                 mapView.overlays.remove(it)
                 it.onDetach(mapView)
             }
-            mapView.overlays.add(0, next)
-            overlay = next
+            // Wolken unten, Regen darüber, Markierung zuoberst
+            next.forEachIndexed { i, o -> mapView.overlays.add(i, o) }
+            current = next
             mapView.invalidate()
+            status = if (parts.isEmpty()) "Keine Wetterebene gewählt" else parts.joinToString("  ·  ")
             delay(300_000)
         }
     }
@@ -353,5 +363,34 @@ private fun RadarMap(settings: AppSettings, display: DisplaySettings, modifier: 
         }
     }
 
-    AndroidView(factory = { mapView }, modifier = modifier)
+    val credits = buildList {
+        if (display.radarSource == RadarSource.DWD) add("Radar: Deutscher Wetterdienst")
+        if (display.radarSource == RadarSource.RAINVIEWER) add("Weather data by RainViewer")
+        if (display.showClouds) add("Satellit: EUMETSAT")
+        add(WeatherSources.baseAttribution(display.baseMap))
+    }.joinToString(" · ")
+
+    Box(modifier) {
+        AndroidView(factory = { mapView }, modifier = Modifier.fillMaxSize())
+        Text(
+            status, fontSize = 13.sp, color = Color.White,
+            modifier = Modifier.align(Alignment.TopStart).padding(8.dp)
+                .background(Color.Black.copy(alpha = 0.6f)).padding(horizontal = 8.dp, vertical = 4.dp),
+        )
+        Text(
+            credits, fontSize = 11.sp, color = Color.Black,
+            modifier = Modifier.align(Alignment.BottomStart)
+                .background(Color.White.copy(alpha = 0.75f)).padding(horizontal = 6.dp, vertical = 2.dp),
+        )
+    }
+}
+
+private fun tilesOverlay(context: Context, mapView: MapView, src: OnlineTileSourceBase, alpha: Float): TilesOverlay {
+    val provider = MapTileProviderBasic(context.applicationContext, src)
+    provider.setTileRequestCompleteHandler(mapView.tileRequestCompleteHandler)
+    return TilesOverlay(provider, context.applicationContext).apply {
+        setLoadingBackgroundColor(android.graphics.Color.TRANSPARENT)
+        setLoadingLineColor(android.graphics.Color.TRANSPARENT)
+        if (alpha < 1f) setColorFilter(ColorMatrixColorFilter(ColorMatrix().apply { setScale(1f, 1f, 1f, alpha) }))
+    }
 }

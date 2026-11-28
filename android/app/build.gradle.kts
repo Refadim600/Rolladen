@@ -14,8 +14,8 @@ android {
         // Android 5.0 und neuer (java.time über Desugaring)
         minSdk = 21
         targetSdk = 35
-        versionCode = 6
-        versionName = "2.0.3"
+        versionCode = 7
+        versionName = "2.1"
     }
 
     // Fester Schlüssel im Repo: Jeder Build hat dieselbe Signatur, Updates lassen sich drüber installieren.

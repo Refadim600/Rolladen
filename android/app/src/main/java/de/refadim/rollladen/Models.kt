@@ -199,6 +199,11 @@ data class DisplaySettings(
     val mapZoom: Int = 8,
     /** Ebene des DWD-WMS (maps.dwd.de) */
     val radarLayer: String = "dwd:Niederschlagsradar",
+    val radarSource: RadarSource = RadarSource.DWD,
+    /** Bewölkung (Meteosat-Infrarot von EUMETSAT) einblenden */
+    val showClouds: Boolean = false,
+    val cloudLayer: String = "msg_fes:ir108",
+    val baseMap: BaseMap = BaseMap.DARK,
 )
 
 @Serializable

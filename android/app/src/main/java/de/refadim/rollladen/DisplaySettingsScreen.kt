@@ -7,6 +7,11 @@ import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.AlertDialog
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +32,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyGridScope
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.lazy.items as listItems
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -147,25 +153,7 @@ fun DisplaySettingsScreen(vm: AppViewModel, onBack: () -> Unit) {
 
                     HorizontalDivider()
                     SectionTitle("Wetterkarte")
-                    Text("Kartenausschnitt (Zoomstufe)", style = MaterialTheme.typography.bodyMedium)
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        listOf(6 to "Deutschland", 7 to "Region", 8 to "Umgebung", 9 to "Nah", 10 to "Sehr nah").forEach { (z, label) ->
-                            FilterChip(
-                                selected = d.mapZoom == z,
-                                onClick = { vm.updateDisplay(d.copy(mapZoom = z)) },
-                                label = { Text(label) },
-                            )
-                        }
-                    }
-                    OutlinedTextField(
-                        d.radarLayer, { vm.updateDisplay(d.copy(radarLayer = it.trim())) },
-                        label = { Text("DWD-Kartenebene") }, singleLine = true, modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        "Standard: dwd:Niederschlagsradar (aktueller Radarfilm des DWD, alle 5 min neu). Die Karte " +
-                            "wird auf den Standort aus den Einstellungen zentriert. Daten: Deutscher Wetterdienst, kostenlos.",
-                        style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    WeatherSettingsBlock(vm)
 
                     HorizontalDivider()
                     SectionTitle("Diashow")
@@ -287,4 +275,130 @@ private fun SensorSettingsBlock(vm: AppViewModel) {
             style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+}
+
+@Composable
+private fun WeatherSettingsBlock(vm: AppViewModel) {
+    val d = vm.display
+    var picker by remember { mutableStateOf<String?>(null) }   // WMS-Adresse, deren Ebenen gezeigt werden
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("Grundkarte", style = MaterialTheme.typography.bodyMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            BaseMap.entries.forEach { b ->
+                FilterChip(selected = d.baseMap == b, onClick = { vm.updateDisplay(vm.display.copy(baseMap = b)) },
+                    label = { Text(b.label) })
+            }
+        }
+
+        Text("Kartenausschnitt (Zoomstufe)", style = MaterialTheme.typography.bodyMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            listOf(6 to "Deutschland", 7 to "Region", 8 to "Umgebung", 9 to "Nah", 10 to "Sehr nah").forEach { (z, label) ->
+                FilterChip(selected = d.mapZoom == z, onClick = { vm.updateDisplay(vm.display.copy(mapZoom = z)) },
+                    label = { Text(label) })
+            }
+        }
+
+        Text("Regenradar", style = MaterialTheme.typography.bodyMedium)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            RadarSource.entries.forEach { r ->
+                FilterChip(selected = d.radarSource == r, onClick = { vm.updateDisplay(vm.display.copy(radarSource = r)) },
+                    label = { Text(r.label) })
+            }
+        }
+        when (d.radarSource) {
+            RadarSource.DWD -> {
+                LayerField("DWD-Kartenebene", d.radarLayer, { vm.updateDisplay(vm.display.copy(radarLayer = it)) }) {
+                    picker = WeatherSources.DWD_WMS
+                }
+                Hint("Radar des Deutschen Wetterdienstes, nur Deutschland. Mit „Ebenen laden“ siehst du alle Ebenen des DWD " +
+                    "und kannst z. B. eine andere Radar- oder Warnungsebene wählen.")
+            }
+            RadarSource.RAINVIEWER -> Hint(
+                "RainViewer: kostenlos für private Nutzung, europaweit. Liefert höchstens Zoomstufe 7 – " +
+                    "„Umgebung“ und näher werden deshalb als „Region“ angezeigt."
+            )
+            RadarSource.OFF -> {}
+        }
+
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Bewölkung (Satellit) einblenden", Modifier.weight(1f))
+            Switch(d.showClouds, { vm.updateDisplay(vm.display.copy(showClouds = it)) })
+        }
+        if (d.showClouds) {
+            LayerField("EUMETSAT-Ebene", d.cloudLayer, { vm.updateDisplay(vm.display.copy(cloudLayer = it)) }) {
+                picker = WeatherSources.EUMETSAT_WMS
+            }
+            Hint("Meteosat-Infrarotbild: Wolken erscheinen hell, auch nachts. Wird halbtransparent unter dem Regen gezeigt. " +
+                "Oben links auf der Karte siehst du, ob die Daten geladen wurden.")
+        }
+    }
+
+    picker?.let { base ->
+        LayerPickerDialog(base, onDismiss = { picker = null }) { name ->
+            if (base == WeatherSources.DWD_WMS) vm.updateDisplay(vm.display.copy(radarLayer = name))
+            else vm.updateDisplay(vm.display.copy(cloudLayer = name))
+            picker = null
+        }
+    }
+}
+
+@Composable
+private fun Hint(text: String) {
+    Text(text, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+}
+
+@Composable
+private fun LayerField(label: String, value: String, onChange: (String) -> Unit, onPick: () -> Unit) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        OutlinedTextField(value, { onChange(it.trim()) }, label = { Text(label) }, singleLine = true,
+            modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(8.dp))
+        OutlinedButton(onClick = onPick) { Text("Ebenen laden") }
+    }
+}
+
+@Composable
+private fun LayerPickerDialog(base: String, onDismiss: () -> Unit, onPick: (String) -> Unit) {
+    var layers by remember { mutableStateOf<List<Pair<String, String>>?>(null) }
+    var error by remember { mutableStateOf<String?>(null) }
+    var filter by remember { mutableStateOf("") }
+    LaunchedEffect(base) {
+        try {
+            layers = WeatherSources.capabilities(base)
+        } catch (e: Exception) {
+            error = e.message ?: "Fehler"
+        }
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        confirmButton = { TextButton(onClick = onDismiss) { Text("Schließen") } },
+        title = { Text("Ebene wählen") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(filter, { filter = it }, label = { Text("Suchen, z. B. radar, ir, wolke") },
+                    singleLine = true, modifier = Modifier.fillMaxWidth())
+                val list = layers
+                when {
+                    error != null -> Text("✗ $error", color = MaterialTheme.colorScheme.error)
+                    list == null -> CircularProgressIndicator()
+                    else -> {
+                        val shown = list.filter {
+                            filter.isBlank() || it.first.contains(filter, true) || it.second.contains(filter, true)
+                        }
+                        Text("${shown.size} von ${list.size} Ebenen", style = MaterialTheme.typography.bodySmall)
+                        LazyColumn(Modifier.heightIn(max = 420.dp)) {
+                            listItems(shown) { (name, title) ->
+                                Column(Modifier.fillMaxWidth().clickable { onPick(name) }.padding(vertical = 6.dp)) {
+                                    Text(title.ifEmpty { name }, style = MaterialTheme.typography.bodyMedium)
+                                    Text(name, style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+    )
 }
