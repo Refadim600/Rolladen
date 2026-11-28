@@ -25,6 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -100,7 +101,10 @@ private fun RootContent(vm: AppViewModel, dark: Boolean) {
             }
         }
     ) {
-        if (vm.idle) IdleScreen(vm) else App(vm)
+        // Surface setzt die Schriftfarbe passend zu hell/dunkel für alle Seiten
+        Surface(color = MaterialTheme.colorScheme.background, modifier = Modifier.fillMaxSize()) {
+            if (vm.idle) IdleScreen(vm) else App(vm)
+        }
     }
 }
 

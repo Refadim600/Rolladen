@@ -206,8 +206,10 @@ private fun WeatherPage(vm: AppViewModel) {
         val landscape = maxWidth > maxHeight
         val info: @Composable (Modifier) -> Unit = { mod ->
             Column(mod.background(MaterialTheme.colorScheme.surface).padding(20.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                Text(now.format(clockFormat), fontSize = 56.sp, fontWeight = FontWeight.Light)
-                Text(now.format(dateFormat), style = MaterialTheme.typography.titleMedium)
+                Text(now.format(clockFormat), fontSize = 56.sp, fontWeight = FontWeight.Light,
+                    color = MaterialTheme.colorScheme.onSurface)
+                Text(now.format(dateFormat), style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface)
                 TempTile("Innen", vm.indoorTemp, Modifier.fillMaxWidth())
                 TempTile("Außen", vm.outdoorTemp, Modifier.fillMaxWidth())
                 when {
