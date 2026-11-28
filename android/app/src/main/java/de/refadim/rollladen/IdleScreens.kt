@@ -69,6 +69,7 @@ import kotlinx.coroutines.delay
 import org.osmdroid.config.Configuration
 import org.osmdroid.tileprovider.MapTileProviderBasic
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
+import org.osmdroid.tileprovider.tilesource.TileSourceFactory
 import org.osmdroid.util.GeoPoint
 import org.osmdroid.views.CustomZoomButtonsController
 import org.osmdroid.views.MapView
@@ -290,7 +291,8 @@ private fun WeatherMap(settings: AppSettings, display: DisplaySettings, modifier
         display.mapZoom.coerceAtMost(WeatherSources.RAINVIEWER_MAX_ZOOM) else display.mapZoom
 
     LaunchedEffect(display.baseMap) {
-        mapView.setTileSource(WeatherSources.baseTiles(display.baseMap))
+        mapView.setTileSource(TileSourceFactory.MAPNIK)
+        mapView.overlayManager.tilesOverlay.setColorFilter(WeatherSources.baseFilter(display.baseMap))
         mapView.invalidate()
     }
 

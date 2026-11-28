@@ -4,8 +4,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import org.osmdroid.tileprovider.tilesource.OnlineTileSourceBase
-import org.osmdroid.tileprovider.tilesource.TileSourceFactory
-import org.osmdroid.tileprovider.tilesource.XYTileSource
+import android.graphics.ColorMatrixColorFilter
 import org.osmdroid.util.MapTileIndex
 import java.net.HttpURLConnection
 import java.net.URL
@@ -32,20 +31,44 @@ object WeatherSources {
     /** RainViewer liefert kostenlos nur bis Zoomstufe 7 */
     const val RAINVIEWER_MAX_ZOOM = 7
 
-    fun baseTiles(b: BaseMap) = when (b) {
-        BaseMap.OSM -> TileSourceFactory.MAPNIK
-        BaseMap.DARK -> XYTileSource(
-            "CartoDark", 0, 19, 256, ".png",
-            arrayOf("https://a.basemaps.cartocdn.com/dark_all/", "https://b.basemaps.cartocdn.com/dark_all/"),
-        )
-        BaseMap.LIGHT -> XYTileSource(
-            "CartoLight", 0, 19, 256, ".png",
-            arrayOf("https://a.basemaps.cartocdn.com/light_all/", "https://b.basemaps.cartocdn.com/light_all/"),
-        )
+    /**
+     * Grundkarte ist immer OpenStreetMap; „Dunkel“ und „Hell (grau)“ entstehen per Farbfilter
+     * (kein zusätzlicher Kartendienst, kein API-Schlüssel).
+     */
+    fun baseFilter(b: BaseMap): ColorMatrixColorFilter? {
+        val r = 0.299f
+        val g = 0.587f
+        val bl = 0.114f
+        return when (b) {
+            BaseMap.OSM -> null
+            // Graustufen, invertiert und abgedunkelt: helle Flächen werden dunkelgrau, Straßen fast schwarz
+            BaseMap.DARK -> {
+                val k = -0.85f
+                ColorMatrixColorFilter(
+                    floatArrayOf(
+                        r * k, g * k, bl * k, 0f, 255f,
+                        r * k, g * k, bl * k, 0f, 255f,
+                        r * k, g * k, bl * k, 0f, 262f,
+                        0f, 0f, 0f, 1f, 0f,
+                    )
+                )
+            }
+            // Helle Graustufen
+            BaseMap.LIGHT -> {
+                val k = 0.85f
+                ColorMatrixColorFilter(
+                    floatArrayOf(
+                        r * k, g * k, bl * k, 0f, 35f,
+                        r * k, g * k, bl * k, 0f, 35f,
+                        r * k, g * k, bl * k, 0f, 35f,
+                        0f, 0f, 0f, 1f, 0f,
+                    )
+                )
+            }
+        }
     }
 
-    fun baseAttribution(b: BaseMap) =
-        if (b == BaseMap.OSM) "Karte © OpenStreetMap-Mitwirkende" else "Karte © OpenStreetMap-Mitwirkende, © CARTO"
+    fun baseAttribution(b: BaseMap) = "Karte © OpenStreetMap-Mitwirkende"
 
     data class RainFrame(val host: String, val path: String, val time: Long)
 
